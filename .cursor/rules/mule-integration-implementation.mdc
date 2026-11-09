@@ -1,0 +1,25 @@
+---
+description: v1 public-API integration stack, Mule boundary, and test contract
+globs: "{pom.xml,public-api-edge/**,mule-public-api/**,Dockerfile,docker-compose.yml}"
+alwaysApply: false
+---
+
+# Implementation contract
+
+Read `.ai/greenfield/PRD.md`, `SYSTEM_DESIGN.md`, `TECH_STACK.md`, and `TESTING_PLAN.md` before changing matching files.
+
+## Stack
+
+Java 21 and Spring Boot 3.3.x for `public-api-edge` only. Mule runtime 4.9+ on Java 17 for `mule-public-api` only. Maven 3.9+. JaCoCo line coverage ≥ 0.80 on the Boot module. Dependencies are the allow-list in `TECH_STACK.md`.
+
+API DTOs are Java `record`s. Outbound HTTP from Spring uses `RestClient` with base URL `${MULE_BASE_URL:http://localhost:8081}`. No RestTemplate, WebClient, or WebFlux.
+
+## Boundary
+
+Spring exposes the specific tasks and `POST /api/v1/integrate`. Mule calls IPify, Agify, HTTPBin, Zippopotam, and CoinMarketCap. Do not put those hosts in `public-api-edge` main sources. Do not send `X-CMC_PRO_API_KEY`. The keyless CoinMarketCap URL in the PRD is the v1 price endpoint.
+
+There is no database in v1.
+
+## Tests
+
+Mandatory classes and cases in `TESTING_PLAN.md`. Integration tests use `@ActiveProfiles("test")` and `MockRestServiceServer` on the Mule `RestClient`. They must not call the public internet. `mvn -f public-api-edge/pom.xml clean test` on JDK 21 is the Gate 4 command.

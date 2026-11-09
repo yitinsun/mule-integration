@@ -1,0 +1,28 @@
+---
+description: Gated SDLC — Gate 2 lock, stages, audit, high-impact stops
+alwaysApply: true
+---
+
+# Lifecycle governance
+
+Follow `AGENTS.md` and `.ai/greenfield/INSTRUCTIONS.md` + `ORCHESTRATION_MANIFEST.md` on every chat.
+
+Product specs in `.ai/greenfield/` override url-shortener examples in `.assets/sop/`.
+
+## Gate 2
+
+If `GATE2_APPROVAL.txt` is missing or lacks `[APPROVED: …]`, do not create or edit `pom.xml`, `public-api-edge/**`, `mule-public-api/**`, or `src/**`. Refuse and ask for approval. Docs, this rule, and audit/metrics JSON may be edited.
+
+## Stages
+
+Implement only the current stage. Do not skip Gate 3 (Mule flows + request rules + Spring Boot module) before `mvn -f public-api-edge/pom.xml clean test`. On test failure: fix code, never `@Disabled` / `@Ignore`, max 3 retries, then stop (do not start Stage 6).
+
+Boot tests run on JDK 21. The Mule app runs on JDK 17. Spring Boot must call only `MULE_BASE_URL`.
+
+## Lineage
+
+Append `SDLC_AUDIT_LOG.json` and update `SDLC_METRICS.json` per `INSTRUCTIONS.md`. Do not invent coverage or “generated” files in `MULE_INTEGRATION_SUMMARY.md`.
+
+## High impact — halt
+
+Changing upstream hosts or listener contracts after Gate 2, adding undeclared `pom.xml` dependencies, adding a database, calling public APIs from Spring, or dropping the 80% / mandatory test bar requires a new human signature. Re-plan to Stage 1 if `PRD.md` or design changes mid-run.
