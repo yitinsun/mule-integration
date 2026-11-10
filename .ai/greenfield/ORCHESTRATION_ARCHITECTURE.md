@@ -6,7 +6,7 @@ The Spring Boot process is not an integration engine, and the Mule runtime is no
 
 ```
 operator
-   │  GATE2_APPROVAL.txt  (HITL) — not present yet
+   │  GATE2_APPROVAL.txt  (HITL) — [APPROVED: yitin]
    ▼
 agent (Cursor)  ──reads──►  .ai/greenfield   AGENTS.md   .assets/sop
    │                         writes public-api-edge/ and mule-public-api/ only after Gate 2
@@ -29,10 +29,10 @@ upstream spec change ──► re-plan at Stage 1 (audit log kept)
 | Gate | Meaning here | Artifact |
 |:-----|:-------------|:---------|
 | 1 | Five providers, specific and general usage, Java 21, local Mule | `.ai/greenfield/PRD.md` |
-| 2 | Human unlock. Delta: no SQL; Boot parent 3.3.5; Mule HTTP connector only | `GATE2_APPROVAL.txt` (`[APPROVED: …]`) — **absent** |
-| 3 | Mule flows + rules/records + Boot module together | `mule-public-api/`, `public-api-edge/` — **not created** |
+| 2 | Human unlock. Delta: no SQL; Boot parent 3.3.5; Mule HTTP connector only | `GATE2_APPROVAL.txt` (`[APPROVED: yitin]`) |
+| 3 | Mule flows + rules/records + Boot module together | `mule-public-api/`, `public-api-edge/` |
 | 4 | Boot tests + coverage + boundary scan | `mvn -f public-api-edge/pom.xml clean test` on JDK 21, JaCoCo ≥ 0.80 |
-| 5 | Boot image only. No Mule image | `Dockerfile`, `docker-compose.yml` — Stage 6, not started |
+| 5 | Boot image only. No Mule image | `public-api-edge/Dockerfile` and `docker-compose.yml` are written. Docker CLI was not on PATH, so the image was not built. |
 | 6 | Honest summary | `.ai/greenfield/MULE_INTEGRATION_SUMMARY.md` |
 
 ## Spec → planned code
@@ -56,7 +56,7 @@ A change to `PRD.md` invalidates downstream hashes and restarts at Stage 1. The 
 
 | Action | Agent | Human |
 |:-------|:------|:------|
-| Write these specs | Done for Stages 1–2 | Read the Gate 2 delta and, if it is right, sign `GATE2_APPROVAL.txt` |
+| Write these specs | Done for Stages 1–2 | Signed `GATE2_APPROVAL.txt` |
 | Method-body test repair after Gate 4 fails | Yes, up to 3 times | Review |
 | New `pom` dependency, SQL, or a new upstream host | Halt | New signature |
 | Coverage below 80% or `@Disabled` | Forbidden | — |

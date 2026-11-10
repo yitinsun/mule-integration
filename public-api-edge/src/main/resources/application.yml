@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: public-api-edge
+  profiles:
+    active: dev
+
+server:
+  port: ${SERVER_PORT:8080}
+
+mule:
+  base-url: ${MULE_BASE_URL:http://localhost:8081}
+  connect-timeout-ms: ${MULE_CONNECT_TIMEOUT_MS:2000}
+  read-timeout-ms: ${MULE_READ_TIMEOUT_MS:5000}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: ${SPRINGDOC_ENABLED:true}
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:true}
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+    try-it-out-enabled: true
+    persist-authorization: false
+  show-actuator: false
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  packages-to-scan: com.yitinsun.muleintegration.web
+  paths-to-match:
+    - /api/v1/**
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:false}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+
+mule:
+  base-url: ${MULE_BASE_URL:http://localhost:8081}

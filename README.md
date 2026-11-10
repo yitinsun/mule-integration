@@ -12,6 +12,16 @@ Spring Boot 3.x (Java 21) microservices call a **local MuleSoft** integration la
 
 Each API has a **specific** HTTP task and a **general** `POST /api/v1/integrate` operation. Contracts, Mule flows, the allowed Maven dependencies, and the mandatory tests are in `.ai/greenfield/`.
 
-The build is spec-first. Functional Java and Mule sources stay locked until `GATE2_APPROVAL.txt` contains `[APPROVED: …]`. Status of what has actually been built: `.ai/greenfield/MULE_INTEGRATION_SUMMARY.md`.
+Gate 2 is approved. Status of what has actually been built and measured: `.ai/greenfield/MULE_INTEGRATION_SUMMARY.md`.
+
+```text
+mvn -f public-api-edge/pom.xml clean test
+```
+
+That command is the Gate 4 check. Run it on JDK 21. Package the Mule app on JDK 17:
+
+```text
+mvn -f mule-public-api/pom.xml package
+```
 
 Playbook used to produce these specs: `.assets/sop/spring-boot-agentic-sdlc/SOP.md`.

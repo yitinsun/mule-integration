@@ -54,5 +54,101 @@
     "upstream_dependency": ".ai/greenfield/INSTRUCTIONS.md",
     "upstream_dependency_hash": "58a359dd1e9ba01bb29edbdc67c67cf9d210882e62a27dcc83d73bbc77cc579b",
     "rationale": "The summary is only allowed to report measured artifacts. This pass produced specifications."
+  },
+  {
+    "timestamp": "2026-11-09T21:05:00Z",
+    "stage": "IMPLEMENTATION",
+    "action_taken": "After GATE2_APPROVAL.txt [APPROVED: yitin], created public-api-edge (Boot 3.3.5, Java 21) and mule-public-api (runtime 4.13.0, plugin 4.10.3, HTTP connector 1.12.2, minMuleVersion 4.9.0).",
+    "upstream_dependency": ".ai/greenfield/SYSTEM_DESIGN.md",
+    "upstream_dependency_hash": "b3ec23d86b2962744a14fee6c96d3c564e04df775ecd1a31f907080910d44be3",
+    "rationale": "Gate 2 unlocked Stage 3. 3A is the Mule app, 3B is RequestRules and records, 3C is the Boot edge. Spring calls only MULE_BASE_URL."
+  },
+  {
+    "timestamp": "2026-11-09T21:05:00Z",
+    "stage": "TESTING",
+    "action_taken": "mvn -f public-api-edge/pom.xml clean test on JDK 21.0.12.1: 44 tests, 0 failures, 0 errors, 0 skipped. JaCoCo line coverage 289/327 = 88.38%. Check minimum 0.80 passed.",
+    "upstream_dependency": ".ai/greenfield/TESTING_PLAN.md",
+    "upstream_dependency_hash": "70a9846487fe5657c2c572b13b81120a10e3ac08b2ad9a1de6a54d35f48cf56f",
+    "rationale": "Gate 4A and 4B. Coverage is the line ratio from public-api-edge/target/site/jacoco/jacoco.csv."
+  },
+  {
+    "timestamp": "2026-11-09T21:05:00Z",
+    "stage": "COMPLIANCE",
+    "action_taken": "Gate 4C scan: no upstream hosts or X-CMC_PRO_API_KEY under public-api-edge/src/main, no @Disabled or @Ignore, six Mule flows present, hosts match SYSTEM_DESIGN.md section 6.2.",
+    "upstream_dependency": ".ai/greenfield/TECH_STACK.md",
+    "upstream_dependency_hash": "2f0b166a3ea2fb80354c83b4293df74035a9c36e76834390bc628be7e6d41699",
+    "rationale": "The edge must not call the public APIs. The Mule app is the only place those hosts are configured."
+  },
+  {
+    "timestamp": "2026-11-09T21:05:00Z",
+    "stage": "OBSERVABILITY",
+    "action_taken": "Wrote public-api-edge/Dockerfile and docker-compose.yml. docker is not on PATH, so the image was not built. Started mvn -f mule-public-api/pom.xml package on JDK 17.0.1; dependency download was still running when this entry was written.",
+    "upstream_dependency": ".ai/greenfield/TECH_STACK.md",
+    "upstream_dependency_hash": "2f0b166a3ea2fb80354c83b4293df74035a9c36e76834390bc628be7e6d41699",
+    "rationale": "Stage 6 files exist. An image and a Mule jar are not claimed until those commands finish."
+  },
+  {
+    "timestamp": "2026-11-09T21:12:44Z",
+    "stage": "IMPLEMENTATION",
+    "action_taken": "mvn -f mule-public-api/pom.xml package on JDK 17.0.1 exited 1. mule-maven-plugin 4.10.3 process-sources threw NoSuchMethodError RemoteRepository.Builder.setBlocked. Local Maven is 3.6.3. No Mule jar was produced.",
+    "upstream_dependency": ".ai/greenfield/TECH_STACK.md",
+    "upstream_dependency_hash": "2f0b166a3ea2fb80354c83b4293df74035a9c36e76834390bc628be7e6d41699",
+    "rationale": "Plugin 4.10.3 needs Maven 3.9.x. This is an environment stop, not a Boot test retry and not a flow stub."
+  },
+  {
+    "timestamp": "2026-11-10T04:17:11Z",
+    "stage": "TESTING",
+    "action_taken": "mvn -f public-api-edge/pom.xml clean install on JDK 21.0.12.1 with Maven 3.9.15: BUILD SUCCESS. Tests run 44, failures 0, errors 0, skipped 0. JaCoCo 289/327 = 88.38%. Jar installed to the local repository.",
+    "upstream_dependency": ".ai/greenfield/TESTING_PLAN.md",
+    "upstream_dependency_hash": "70a9846487fe5657c2c572b13b81120a10e3ac08b2ad9a1de6a54d35f48cf56f",
+    "rationale": "Operator asked for mvn clean install. There is no aggregator pom, so the Boot module was built on JDK 21."
+  },
+  {
+    "timestamp": "2026-11-10T04:18:00Z",
+    "stage": "REPAIR",
+    "action_taken": "Removed VALIDATION:INVALID_BOOLEAN from the post-integrate error handler in public-api.xml. Mule 4.13 compile reported Could not find error VALIDATION:INVALID_BOOLEAN. Invalid integrate bodies still return 400 through the choice-router otherwise, which calls reject-integration.",
+    "upstream_dependency": ".ai/greenfield/TECH_STACK.md",
+    "upstream_dependency_hash": "2f0b166a3ea2fb80354c83b4293df74035a9c36e76834390bc628be7e6d41699",
+    "rationale": "That error type belongs to the Validation module. TECH_STACK.md allows only the HTTP connector in the Mule POM, so the type cannot be referenced. The 400 path named in SYSTEM_DESIGN.md section 6.3 remains the choice-router else."
+  },
+  {
+    "timestamp": "2026-11-10T04:18:26Z",
+    "stage": "IMPLEMENTATION",
+    "action_taken": "mvn -f mule-public-api/pom.xml clean install on JDK 17.0.1 with Anypoint Studio Maven 3.9.15: BUILD SUCCESS in 23.673 s. Produced mule-public-api/target/mule-public-api-0.1.0-SNAPSHOT-mule-application.jar and installed it.",
+    "upstream_dependency": ".ai/greenfield/TECH_STACK.md",
+    "upstream_dependency_hash": "2f0b166a3ea2fb80354c83b4293df74035a9c36e76834390bc628be7e6d41699",
+    "rationale": "Studio 7.29 bundles Maven 3.9.15, which satisfies mule-maven-plugin 4.10.3. Runtime pair recorded: Mule 4.13.0, plugin 4.10.3."
+  },
+  {
+    "timestamp": "2026-11-10T18:59:00Z",
+    "stage": "REPLAN",
+    "action_taken": "Wrote .ai/brownfield/ADD_SWAGGER.md as a deferred springdoc playbook for public-api-edge. Did not edit pom.xml, application.yml, or Java. Swagger remains out of v1.",
+    "upstream_dependency": ".ai/greenfield/TECH_STACK.md",
+    "upstream_dependency_hash": "2f0b166a3ea2fb80354c83b4293df74035a9c36e76834390bc628be7e6d41699",
+    "rationale": "PRD.md, SYSTEM_DESIGN.md, and TECH_STACK.md forbid springdoc until a human re-plan names the dependency. The playbook records the later steps and stops before them."
+  },
+  {
+    "timestamp": "2026-11-10T19:06:00Z",
+    "stage": "REPLAN",
+    "action_taken": "Named springdoc-openapi-starter-webmvc-ui 2.6.0 in PRD.md, SYSTEM_DESIGN.md, and TECH_STACK.md, and removed Swagger from the v1 out-of-scope list in those files and AGENTS.md. Updated the stop banner in .ai/brownfield/ADD_SWAGGER.md. Mule still has no springdoc, APIkit, or MUnit.",
+    "upstream_dependency": ".ai/greenfield/PRD.md",
+    "upstream_dependency_hash": "e4ef23ba0a334a72196e7a317e3cd30575df62c76437f05ca5612e8e8c47c698",
+    "rationale": "The operator authorized this dependency and asked to continue. The edge catalog describes existing /api/v1 routes. It does not add a business operation or a public-API call from Spring."
+  },
+  {
+    "timestamp": "2026-11-10T19:06:30Z",
+    "stage": "IMPLEMENTATION",
+    "action_taken": "Added springdoc 2.6.0 to public-api-edge/pom.xml, the springdoc block and prod disable in application.yml, config/OpenApiConfig, and @Tag/@Operation/@ApiResponse plus @Schema on the six controllers and ten DTO records. Paths, status codes, and RequestRules were not changed. mule-public-api was not edited.",
+    "upstream_dependency": ".ai/greenfield/TECH_STACK.md",
+    "upstream_dependency_hash": "861abeb8870044f067395654922b5deb09cbb8153542ed2abc3f0ae6eff903f5",
+    "rationale": "TECH_STACK.md now lists this starter as the only allowed API catalog, edge only."
+  },
+  {
+    "timestamp": "2026-11-10T19:06:30Z",
+    "stage": "TESTING",
+    "action_taken": "mvn -f public-api-edge/pom.xml clean test on JDK 21.0.12.1 with Maven 3.9.15: BUILD SUCCESS. Tests run 44, failures 0, errors 0, skipped 0. JaCoCo 300/338 = 88.76%. Check minimum 0.80 passed. Swagger UI was not opened.",
+    "upstream_dependency": ".ai/greenfield/TESTING_PLAN.md",
+    "upstream_dependency_hash": "70a9846487fe5657c2c572b13b81120a10e3ac08b2ad9a1de6a54d35f48cf56f",
+    "rationale": "Gate 4 after the catalog change. Coverage is the line ratio from public-api-edge/target/site/jacoco/jacoco.csv."
   }
 ]
