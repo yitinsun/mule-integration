@@ -1,0 +1,560 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <configuration-properties file="properties/public-api.yaml"/>
+
+    <http:listener-config name="listener-config">
+        <http:listener-connection host="${http.listener.host}" port="${http.listener.port}"/>
+    </http:listener-config>
+
+    <http:request-config name="ipify-request" responseTimeout="5000">
+        <http:request-connection protocol="HTTPS" host="${ipify.host}" port="${ipify.port}"/>
+    </http:request-config>
+    <http:request-config name="agify-request" responseTimeout="5000">
+        <http:request-connection protocol="HTTPS" host="${agify.host}" port="${agify.port}"/>
+    </http:request-config>
+    <http:request-config name="httpbin-request" responseTimeout="5000">
+        <http:request-connection protocol="HTTP" host="${httpbin.host}" port="${httpbin.port}"/>
+    </http:request-config>
+    <http:request-config name="zippopotam-request" responseTimeout="5000">
+        <http:request-connection protocol="HTTP" host="${zippopotam.host}" port="${zippopotam.port}"/>
+    </http:request-config>
+    <http:request-config name="coinmarketcap-request" responseTimeout="5000">
+        <http:request-connection protocol="HTTPS" host="${coinmarketcap.host}" port="${coinmarketcap.port}"/>
+    </http:request-config>
+
+    <sub-flow name="emit-error">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: vars.httpStatus as Number,
+  error: vars.errorPhrase,
+  message: vars.errorMessage,
+  provider: vars.provider
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="reject-message">
+        <set-variable variableName="httpStatus" value="#[vars.httpStatus default 400]"/>
+        <set-variable variableName="errorPhrase" value="#[vars.errorPhrase default 'Bad Request']"/>
+        <flow-ref name="emit-error"/>
+    </sub-flow>
+
+    <sub-flow name="reject-integration">
+        <set-variable variableName="httpStatus" value="400"/>
+        <set-variable variableName="errorPhrase" value="Bad Request"/>
+        <set-variable variableName="errorMessage" value="Integration request is invalid."/>
+        <flow-ref name="emit-error"/>
+    </sub-flow>
+
+    <sub-flow name="ipify-execute">
+        <choice>
+            <when expression="#[vars.format == 'text']">
+                <http:request method="GET" config-ref="ipify-request" path="${ipify.path}"/>
+            </when>
+            <otherwise>
+                <http:request method="GET" config-ref="ipify-request" path="${ipify.path}">
+                    <http:query-params>#[{'format': 'json'}]</http:query-params>
+                </http:request>
+            </otherwise>
+        </choice>
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ ip: if (payload is Object) payload.ip else (payload as String) }]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="agify-execute">
+        <http:request method="GET" config-ref="agify-request" path="${agify.path}">
+            <http:query-params>#[{'name': vars.name}]</http:query-params>
+        </http:request>
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  name: payload.name,
+  age: payload.age,
+  count: payload.count
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="httpbin-execute">
+        <http:request method="GET" config-ref="httpbin-request" path="${httpbin.path}">
+            <http:headers>#[{}]</http:headers>
+        </http:request>
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  url: payload.url,
+  origin: payload.origin,
+  headers: payload.headers default {},
+  args: payload.args default {}
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="zippopotam-execute">
+        <http:request method="GET" config-ref="zippopotam-request" path="#['/' ++ vars.country ++ '/' ++ vars.postalCode]"/>
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  postalCode: payload."post code",
+  country: payload.country,
+  countryAbbreviation: payload."country abbreviation",
+  places: (payload.places default []) map ((p) -> {
+    placeName: p."place name",
+    state: p.state,
+    stateAbbreviation: p."state abbreviation",
+    latitude: p.latitude,
+    longitude: p.longitude
+  })
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="coinmarketcap-execute">
+        <set-variable variableName="cmcQuery" value="#[{ids: vars.ids} ++ (if (vars.includeMarketCap == true) {include_market_cap: true} else {}) ++ (if (vars.includeVolume24h == true) {include_volume_24h: true} else {}) ++ (if (vars.includePercentChange24h == true) {include_percent_change_24h: true} else {}) ++ (if (vars.includeLastUpdated == true) {include_last_updated: true} else {})]"/>
+        <http:request method="GET" config-ref="coinmarketcap-request" path="${coinmarketcap.path}">
+            <http:query-params>#[vars.cmcQuery]</http:query-params>
+        </http:request>
+        <choice>
+            <when expression="#[payload.status.error_code == 0 or payload.status.error_code == '0']">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+fun price(row) = {
+  id: row.id,
+  price: row.price
+} ++ (if (vars.includeMarketCap == true and row.market_cap != null) {marketCap: row.market_cap} else {})
+  ++ (if (vars.includeVolume24h == true and row.volume_24h != null) {volume24h: row.volume_24h} else {})
+  ++ (if (vars.includePercentChange24h == true and row.percent_change_24h != null) {percentChange24h: row.percent_change_24h} else {})
+  ++ (if (vars.includeLastUpdated == true and row.last_updated != null) {lastUpdated: row.last_updated} else {})
+---
+{
+  currency: "USD",
+  prices: (payload.data default []) map ((row) -> price(row))
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <otherwise>
+                <raise-error type="APP:UNUSABLE" description="Upstream response was not usable."/>
+            </otherwise>
+        </choice>
+    </sub-flow>
+
+    <flow name="get-ipify">
+        <http:listener config-ref="listener-config" path="/providers/ipify" allowedMethods="GET">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 502]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <set-variable variableName="provider" value="ipify"/>
+        <choice>
+            <when expression="#[sizeOf((namesOf(attributes.queryParams default {}) default []) filter ((k) -> k != 'format')) &gt; 0]">
+                <set-variable variableName="errorMessage" value="Unknown query parameter."/>
+                <flow-ref name="reject-message"/>
+            </when>
+            <otherwise>
+                <set-variable variableName="format" value="#[attributes.queryParams.format default 'json']"/>
+                <choice>
+                    <when expression="#[vars.format == 'json' or vars.format == 'text']">
+                        <flow-ref name="ipify-execute"/>
+                    </when>
+                    <otherwise>
+                        <set-variable variableName="errorMessage" value="Query parameter format must be json or text."/>
+                        <flow-ref name="reject-message"/>
+                    </otherwise>
+                </choice>
+            </otherwise>
+        </choice>
+        <error-handler>
+            <on-error-continue type="HTTP:TIMEOUT, HTTP:CONNECTIVITY">
+                <set-variable variableName="httpStatus" value="504"/>
+                <set-variable variableName="errorPhrase" value="Gateway Timeout"/>
+                <set-variable variableName="errorMessage" value="Upstream request timed out."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:TOO_MANY_REQUESTS">
+                <set-variable variableName="httpStatus" value="429"/>
+                <set-variable variableName="errorPhrase" value="Too Many Requests"/>
+                <set-variable variableName="errorMessage" value="Upstream rate limit was reached."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:NOT_FOUND">
+                <set-variable variableName="httpStatus" value="404"/>
+                <set-variable variableName="errorPhrase" value="Not Found"/>
+                <set-variable variableName="errorMessage" value="Upstream resource was not found."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="ANY">
+                <set-variable variableName="httpStatus" value="502"/>
+                <set-variable variableName="errorPhrase" value="Bad Gateway"/>
+                <set-variable variableName="errorMessage" value="Upstream response was not usable."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+        </error-handler>
+    </flow>
+
+    <flow name="get-agify">
+        <http:listener config-ref="listener-config" path="/providers/agify" allowedMethods="GET">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 502]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <set-variable variableName="provider" value="agify"/>
+        <set-variable variableName="name" value="#[trim(attributes.queryParams.name default '')]"/>
+        <choice>
+            <when expression="#[sizeOf((namesOf(attributes.queryParams default {}) default []) filter ((k) -> k != 'name')) &gt; 0]">
+                <set-variable variableName="errorMessage" value="Unknown query parameter."/>
+                <flow-ref name="reject-message"/>
+            </when>
+            <when expression="#[vars.name == '']">
+                <set-variable variableName="errorMessage" value="Query parameter name is required."/>
+                <flow-ref name="reject-message"/>
+            </when>
+            <when expression="#[vars.name matches /^[\p{L}][\p{L} .'\-]{0,63}$/]">
+                <flow-ref name="agify-execute"/>
+            </when>
+            <otherwise>
+                <set-variable variableName="errorMessage" value="Query parameter name is invalid."/>
+                <flow-ref name="reject-message"/>
+            </otherwise>
+        </choice>
+        <error-handler>
+            <on-error-continue type="HTTP:TIMEOUT, HTTP:CONNECTIVITY">
+                <set-variable variableName="httpStatus" value="504"/>
+                <set-variable variableName="errorPhrase" value="Gateway Timeout"/>
+                <set-variable variableName="errorMessage" value="Upstream request timed out."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:TOO_MANY_REQUESTS">
+                <set-variable variableName="httpStatus" value="429"/>
+                <set-variable variableName="errorPhrase" value="Too Many Requests"/>
+                <set-variable variableName="errorMessage" value="Upstream rate limit was reached."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:NOT_FOUND">
+                <set-variable variableName="httpStatus" value="404"/>
+                <set-variable variableName="errorPhrase" value="Not Found"/>
+                <set-variable variableName="errorMessage" value="Upstream resource was not found."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="ANY">
+                <set-variable variableName="httpStatus" value="502"/>
+                <set-variable variableName="errorPhrase" value="Bad Gateway"/>
+                <set-variable variableName="errorMessage" value="Upstream response was not usable."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+        </error-handler>
+    </flow>
+
+    <flow name="get-httpbin">
+        <http:listener config-ref="listener-config" path="/providers/httpbin" allowedMethods="GET">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 502]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <set-variable variableName="provider" value="httpbin"/>
+        <choice>
+            <when expression="#[sizeOf(namesOf(attributes.queryParams default {}) default []) == 0]">
+                <flow-ref name="httpbin-execute"/>
+            </when>
+            <otherwise>
+                <set-variable variableName="errorMessage" value="Unknown query parameter."/>
+                <flow-ref name="reject-message"/>
+            </otherwise>
+        </choice>
+        <error-handler>
+            <on-error-continue type="HTTP:TIMEOUT, HTTP:CONNECTIVITY">
+                <set-variable variableName="httpStatus" value="504"/>
+                <set-variable variableName="errorPhrase" value="Gateway Timeout"/>
+                <set-variable variableName="errorMessage" value="Upstream request timed out."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:TOO_MANY_REQUESTS">
+                <set-variable variableName="httpStatus" value="429"/>
+                <set-variable variableName="errorPhrase" value="Too Many Requests"/>
+                <set-variable variableName="errorMessage" value="Upstream rate limit was reached."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:NOT_FOUND">
+                <set-variable variableName="httpStatus" value="404"/>
+                <set-variable variableName="errorPhrase" value="Not Found"/>
+                <set-variable variableName="errorMessage" value="Upstream resource was not found."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="ANY">
+                <set-variable variableName="httpStatus" value="502"/>
+                <set-variable variableName="errorPhrase" value="Bad Gateway"/>
+                <set-variable variableName="errorMessage" value="Upstream response was not usable."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+        </error-handler>
+    </flow>
+
+    <flow name="get-zippopotam">
+        <http:listener config-ref="listener-config" path="/providers/zippopotam/{country}/{postalCode}" allowedMethods="GET">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 502]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <set-variable variableName="provider" value="zippopotam"/>
+        <set-variable variableName="country" value="#[lower(attributes.uriParams.country default '')]"/>
+        <set-variable variableName="postalCode" value="#[attributes.uriParams.postalCode default '']"/>
+        <choice>
+            <when expression="#[sizeOf(namesOf(attributes.queryParams default {}) default []) &gt; 0]">
+                <set-variable variableName="errorMessage" value="Unknown query parameter."/>
+                <flow-ref name="reject-message"/>
+            </when>
+            <when expression="#[vars.country matches /^[A-Za-z]{2}$/ and vars.postalCode matches /^[A-Za-z0-9][A-Za-z0-9 -]{0,19}$/]">
+                <flow-ref name="zippopotam-execute"/>
+            </when>
+            <otherwise>
+                <set-variable variableName="errorMessage" value="Postal path is invalid."/>
+                <flow-ref name="reject-message"/>
+            </otherwise>
+        </choice>
+        <error-handler>
+            <on-error-continue type="HTTP:NOT_FOUND">
+                <set-variable variableName="httpStatus" value="404"/>
+                <set-variable variableName="errorPhrase" value="Not Found"/>
+                <set-variable variableName="errorMessage" value="Postal code was not found."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:TIMEOUT, HTTP:CONNECTIVITY">
+                <set-variable variableName="httpStatus" value="504"/>
+                <set-variable variableName="errorPhrase" value="Gateway Timeout"/>
+                <set-variable variableName="errorMessage" value="Upstream request timed out."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:TOO_MANY_REQUESTS">
+                <set-variable variableName="httpStatus" value="429"/>
+                <set-variable variableName="errorPhrase" value="Too Many Requests"/>
+                <set-variable variableName="errorMessage" value="Upstream rate limit was reached."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="ANY">
+                <set-variable variableName="httpStatus" value="502"/>
+                <set-variable variableName="errorPhrase" value="Bad Gateway"/>
+                <set-variable variableName="errorMessage" value="Upstream response was not usable."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+        </error-handler>
+    </flow>
+
+    <flow name="get-coinmarketcap">
+        <http:listener config-ref="listener-config" path="/providers/coinmarketcap/price" allowedMethods="GET">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 502]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <set-variable variableName="provider" value="coinmarketcap"/>
+        <set-variable variableName="ids" value="#[attributes.queryParams.ids default '']"/>
+        <set-variable variableName="includeMarketCap" value="#[attributes.queryParams.includeMarketCap == 'true']"/>
+        <set-variable variableName="includeVolume24h" value="#[attributes.queryParams.includeVolume24h == 'true']"/>
+        <set-variable variableName="includePercentChange24h" value="#[attributes.queryParams.includePercentChange24h == 'true']"/>
+        <set-variable variableName="includeLastUpdated" value="#[attributes.queryParams.includeLastUpdated == 'true']"/>
+        <choice>
+            <when expression="#[sizeOf((namesOf(attributes.queryParams default {}) default []) filter ((k) -> not (['ids','includeMarketCap','includeVolume24h','includePercentChange24h','includeLastUpdated'] contains k))) &gt; 0]">
+                <set-variable variableName="errorMessage" value="Unknown query parameter."/>
+                <flow-ref name="reject-message"/>
+            </when>
+            <when expression="#[(attributes.queryParams.includeMarketCap != null and attributes.queryParams.includeMarketCap != 'true' and attributes.queryParams.includeMarketCap != 'false') or (attributes.queryParams.includeVolume24h != null and attributes.queryParams.includeVolume24h != 'true' and attributes.queryParams.includeVolume24h != 'false') or (attributes.queryParams.includePercentChange24h != null and attributes.queryParams.includePercentChange24h != 'true' and attributes.queryParams.includePercentChange24h != 'false') or (attributes.queryParams.includeLastUpdated != null and attributes.queryParams.includeLastUpdated != 'true' and attributes.queryParams.includeLastUpdated != 'false')]">
+                <set-variable variableName="errorMessage" value="Include flag must be true or false."/>
+                <flow-ref name="reject-message"/>
+            </when>
+            <when expression="#[vars.ids matches /^\d{1,10}(,\d{1,10}){0,49}$/]">
+                <flow-ref name="coinmarketcap-execute"/>
+            </when>
+            <otherwise>
+                <set-variable variableName="errorMessage" value="Query parameter ids must be 1 to 50 numeric CoinMarketCap ids."/>
+                <flow-ref name="reject-message"/>
+            </otherwise>
+        </choice>
+        <error-handler>
+            <on-error-continue type="APP:UNUSABLE">
+                <set-variable variableName="httpStatus" value="502"/>
+                <set-variable variableName="errorPhrase" value="Bad Gateway"/>
+                <set-variable variableName="errorMessage" value="Upstream response was not usable."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:TIMEOUT, HTTP:CONNECTIVITY">
+                <set-variable variableName="httpStatus" value="504"/>
+                <set-variable variableName="errorPhrase" value="Gateway Timeout"/>
+                <set-variable variableName="errorMessage" value="Upstream request timed out."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:TOO_MANY_REQUESTS">
+                <set-variable variableName="httpStatus" value="429"/>
+                <set-variable variableName="errorPhrase" value="Too Many Requests"/>
+                <set-variable variableName="errorMessage" value="Upstream rate limit was reached."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:NOT_FOUND">
+                <set-variable variableName="httpStatus" value="404"/>
+                <set-variable variableName="errorPhrase" value="Not Found"/>
+                <set-variable variableName="errorMessage" value="Upstream resource was not found."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="ANY">
+                <set-variable variableName="httpStatus" value="502"/>
+                <set-variable variableName="errorPhrase" value="Bad Gateway"/>
+                <set-variable variableName="errorMessage" value="Upstream response was not usable."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+        </error-handler>
+    </flow>
+
+    <flow name="post-integrate">
+        <http:listener config-ref="listener-config" path="/integrate" allowedMethods="POST">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 502]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[{'Content-Type': 'application/json'}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <set-variable variableName="provider" value="#[payload.provider default null]"/>
+        <set-variable variableName="requestedOperation" value="#[payload.operation default null]"/>
+        <set-variable variableName="params" value="#[payload.params default {}]"/>
+        <choice>
+            <when expression="#[vars.provider == 'ipify' and (vars.requestedOperation == null or vars.requestedOperation == 'public-ip') and ((vars.params.format default 'json') == 'json' or (vars.params.format default 'json') == 'text') and sizeOf((namesOf(vars.params default {}) default []) filter ((k) -> k != 'format')) == 0]">
+                <set-variable variableName="operation" value="public-ip"/>
+                <set-variable variableName="format" value="#[vars.params.format default 'json']"/>
+                <flow-ref name="ipify-execute"/>
+            </when>
+            <when expression="#[vars.provider == 'agify' and (vars.requestedOperation == null or vars.requestedOperation == 'predict-age') and (vars.params.name default '') is String and trim(vars.params.name default '') matches /^[\p{L}][\p{L} .'\-]{0,63}$/ and sizeOf((namesOf(vars.params default {}) default []) filter ((k) -> k != 'name')) == 0]">
+                <set-variable variableName="operation" value="predict-age"/>
+                <set-variable variableName="name" value="#[trim(vars.params.name)]"/>
+                <flow-ref name="agify-execute"/>
+            </when>
+            <when expression="#[vars.provider == 'httpbin' and (vars.requestedOperation == null or vars.requestedOperation == 'echo-get') and sizeOf(namesOf(vars.params default {}) default []) == 0]">
+                <set-variable variableName="operation" value="echo-get"/>
+                <flow-ref name="httpbin-execute"/>
+            </when>
+            <when expression="#[vars.provider == 'zippopotam' and (vars.requestedOperation == null or vars.requestedOperation == 'lookup-postal') and (vars.params.country default '') matches /^[A-Za-z]{2}$/ and (vars.params.postalCode default '') matches /^[A-Za-z0-9][A-Za-z0-9 -]{0,19}$/ and sizeOf((namesOf(vars.params default {}) default []) filter ((k) -> not (['country','postalCode'] contains k))) == 0]">
+                <set-variable variableName="operation" value="lookup-postal"/>
+                <set-variable variableName="country" value="#[lower(vars.params.country)]"/>
+                <set-variable variableName="postalCode" value="#[vars.params.postalCode]"/>
+                <flow-ref name="zippopotam-execute"/>
+            </when>
+            <when expression="#[vars.provider == 'coinmarketcap' and (vars.requestedOperation == null or vars.requestedOperation == 'simple-price') and (vars.params.ids default '') matches /^\d{1,10}(,\d{1,10}){0,49}$/ and sizeOf((namesOf(vars.params default {}) default []) filter ((k) -> not (['ids','includeMarketCap','includeVolume24h','includePercentChange24h','includeLastUpdated'] contains k))) == 0]">
+                <set-variable variableName="operation" value="simple-price"/>
+                <set-variable variableName="ids" value="#[vars.params.ids]"/>
+                <set-variable variableName="includeMarketCap" value="#[vars.params.includeMarketCap == true or vars.params.includeMarketCap == 'true']"/>
+                <set-variable variableName="includeVolume24h" value="#[vars.params.includeVolume24h == true or vars.params.includeVolume24h == 'true']"/>
+                <set-variable variableName="includePercentChange24h" value="#[vars.params.includePercentChange24h == true or vars.params.includePercentChange24h == 'true']"/>
+                <set-variable variableName="includeLastUpdated" value="#[vars.params.includeLastUpdated == true or vars.params.includeLastUpdated == 'true']"/>
+                <flow-ref name="coinmarketcap-execute"/>
+            </when>
+            <otherwise>
+                <flow-ref name="reject-integration"/>
+            </otherwise>
+        </choice>
+        <choice>
+            <when expression="#[vars.httpStatus == null]">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  provider: vars.provider,
+  operation: vars.operation,
+  data: payload
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+        </choice>
+        <error-handler>
+            <on-error-continue type="HTTP:NOT_FOUND" when="#[vars.provider == 'zippopotam']">
+                <set-variable variableName="httpStatus" value="404"/>
+                <set-variable variableName="errorPhrase" value="Not Found"/>
+                <set-variable variableName="errorMessage" value="Postal code was not found."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:NOT_FOUND">
+                <set-variable variableName="httpStatus" value="404"/>
+                <set-variable variableName="errorPhrase" value="Not Found"/>
+                <set-variable variableName="errorMessage" value="Upstream resource was not found."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:TIMEOUT, HTTP:CONNECTIVITY">
+                <set-variable variableName="httpStatus" value="504"/>
+                <set-variable variableName="errorPhrase" value="Gateway Timeout"/>
+                <set-variable variableName="errorMessage" value="Upstream request timed out."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="HTTP:TOO_MANY_REQUESTS">
+                <set-variable variableName="httpStatus" value="429"/>
+                <set-variable variableName="errorPhrase" value="Too Many Requests"/>
+                <set-variable variableName="errorMessage" value="Upstream rate limit was reached."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="APP:UNUSABLE, HTTP:BAD_REQUEST, HTTP:CLIENT_SECURITY, HTTP:FORBIDDEN, HTTP:METHOD_NOT_ALLOWED, HTTP:INTERNAL_SERVER_ERROR, HTTP:SERVICE_UNAVAILABLE">
+                <set-variable variableName="httpStatus" value="502"/>
+                <set-variable variableName="errorPhrase" value="Bad Gateway"/>
+                <set-variable variableName="errorMessage" value="Upstream response was not usable."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+            <on-error-continue type="ANY">
+                <set-variable variableName="httpStatus" value="502"/>
+                <set-variable variableName="errorPhrase" value="Bad Gateway"/>
+                <set-variable variableName="errorMessage" value="Upstream response was not usable."/>
+                <flow-ref name="emit-error"/>
+            </on-error-continue>
+        </error-handler>
+    </flow>
+</mule>

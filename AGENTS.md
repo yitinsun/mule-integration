@@ -49,4 +49,4 @@ After Gate 2, any of these needs a new human signature:
 - Adding an `X-CMC_PRO_API_KEY` header or any hardcoded secret.
 - Lowering the 80% line-coverage bar or deleting a mandatory test.
 
-v1 out of scope: CloudHub, a second Spring deployable per API, MySQL, Redis, Flyway, Spring Security, rate-limit stores, Swagger, MUnit, and any public API not named in `PRD.md`.
+v1 out of scope: CloudHub, a second Spring deployable per API, MySQL, Redis, Flyway, Spring Security, rate-limit stores, MUnit, and any public API not named in `PRD.md`. Swagger UI on the edge is in scope only as `springdoc-openapi-starter-webmvc-ui` 2.6.0 named in `TECH_STACK.md`. Do not add springdoc to the Mule app.
