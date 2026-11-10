@@ -2,7 +2,9 @@
 
 This document is the **only** allowed toolchain for v1. Packages not listed here are high-impact (see `ORCHESTRATION_MANIFEST.md` §5.1).
 
-**Explicitly out of v1 (do not add):** MySQL, H2, Spring Data, Flyway/Liquibase, Redis, Spring Security, Resilience4j, Spring WebFlux, RestTemplate, OpenFeign, springdoc, MUnit, APIkit, a CoinMarketCap API-key connector.
+**Explicitly out of v1 (do not add):** MySQL, H2, Spring Data, Flyway/Liquibase, Redis, Spring Security, Resilience4j, Spring WebFlux, RestTemplate, OpenFeign, MUnit, APIkit, a CoinMarketCap API-key connector.
+
+**Allowed API catalog (edge only):** `org.springdoc:springdoc-openapi-starter-webmvc-ui` **2.6.0**. Do not add the WebFlux starter, Springfox, or springdoc on `mule-public-api`.
 
 Two builds. They do not share a parent POM and they do not share a JDK target.
 
@@ -49,6 +51,11 @@ Coordinates: `groupId` `com.yitinsun`, `artifactId` `public-api-edge`, `version`
         <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
     <dependency>
+        <groupId>org.springdoc</groupId>
+        <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        <version>2.6.0</version>
+    </dependency>
+    <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-test</artifactId>
         <scope>test</scope>
@@ -89,6 +96,25 @@ mule:
   connect-timeout-ms: ${MULE_CONNECT_TIMEOUT_MS:2000}
   read-timeout-ms: ${MULE_READ_TIMEOUT_MS:5000}
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: ${SPRINGDOC_ENABLED:true}
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:true}
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+    try-it-out-enabled: true
+    persist-authorization: false
+  show-actuator: false
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  packages-to-scan: com.yitinsun.muleintegration.web
+  paths-to-match:
+    - /api/v1/**
+
 ---
 spring:
   config:
@@ -100,6 +126,11 @@ spring:
   config:
     activate:
       on-profile: prod
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:false}
 
 ---
 spring:

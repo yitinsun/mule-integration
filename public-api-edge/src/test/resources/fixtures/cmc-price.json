@@ -1,0 +1,9 @@
+{
+  "currency": "USD",
+  "prices": [
+    {
+      "id": 1,
+      "price": 65432.12
+    }
+  ]
+}

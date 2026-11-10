@@ -1,12 +1,12 @@
 {
   "success_rate": {
-    "compiled_ok": 0,
-    "syntax_failures": 0
+    "compiled_ok": 3,
+    "syntax_failures": 1
   },
   "retry_rollback_frequency": 0,
   "mttr_ms": null,
   "stage1_epoch_ms": 1794249900000,
   "stage7_epoch_ms": null,
   "end_to_end_latency_ms": null,
-  "updated_at": "2026-11-09T18:45:00Z"
+  "updated_at": "2026-11-10T19:06:30Z"
 }

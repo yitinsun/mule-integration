@@ -2,7 +2,7 @@
 
 Architecture for two local processes. Spring Boot is the edge. Mule is the only caller of the public APIs. There is no database and no cache.
 
-v1 **does not** include a second Spring deployable, CloudHub, SQL, Redis, Swagger, or an API key. Those remain future re-plans.
+v1 **does not** include a second Spring deployable, CloudHub, SQL, Redis, or an API key. Those remain future re-plans. The edge does publish OpenAPI 3 for `/api/v1/**` through springdoc 2.6.0 (`GET /v3/api-docs`, Swagger UI at `GET /swagger-ui.html`). That catalog is documentation of the existing edge routes. Mule listener paths are not in it.
 
 Package for all Java types: `com.yitinsun.muleintegration`.
 

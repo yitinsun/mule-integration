@@ -24,7 +24,9 @@ Source brief: `.notes/mule-project.docx`.
 | Every API has a specific usage and a general usage | §2.1 and §2.2 |
 | IPify, Agify.io, HTTPBin, Zippopotam.us, CoinMarketCap Public | §2.3–§2.7 |
 
-**Out of v1 (re-plan if requested later):** CloudHub and Runtime Fabric, more than one Spring Boot deployable, MySQL or any other database, Redis, authentication, a rate-limit store, Swagger, MUnit, IPv6 IPify, Agify `country_id`, HTTPBin methods other than `GET /get`, Zippopotam lookup-by-city, CoinMarketCap authenticated `/v1` or `/v2` routes, `symbol` lookup, and any sixth provider.
+**Out of v1 (re-plan if requested later):** CloudHub and Runtime Fabric, more than one Spring Boot deployable, MySQL or any other database, Redis, authentication, a rate-limit store, MUnit, IPv6 IPify, Agify `country_id`, HTTPBin methods other than `GET /get`, Zippopotam lookup-by-city, CoinMarketCap authenticated `/v1` or `/v2` routes, `symbol` lookup, and any sixth provider.
+
+**API catalog:** the edge publishes OpenAPI 3 at `GET /v3/api-docs` and Swagger UI at `GET /swagger-ui.html` using `springdoc-openapi-starter-webmvc-ui` **2.6.0**. The catalog describes the existing `/api/v1` routes. It is not a new business operation and it does not call the public APIs. The `prod` profile leaves the catalog off unless `SPRINGDOC_ENABLED` or `SPRINGDOC_SWAGGER_UI_ENABLED` is true. Mule has no catalog.
 
 ## 2. Functional Requirements
 
